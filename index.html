@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Store - Catálogo Dinámico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com">
+    <style>
+        .active-cat { background: #f97316 !important; color: white !important; border-color: #f97316 !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+
+    <!-- BANNER CONFIGURABLE -->
+    <div class="bg-orange-600 text-white text-center py-2 text-[10px] font-bold uppercase tracking-widest">
+        ⚡ OFERTAS SEMANALES EN PRE-ENTRENOS ⚡
+    </div>
+
+    <header class="py-6 text-center">
+        <h1 class="text-2xl font-black italic text-orange-500">ELITE GYM SHOP</h1>
+        <p class="text-zinc-500 text-xs">Fuerza y Suplementación</p>
+    </header>
+
+    <!-- NAVEGACIÓN DINÁMICA (Se llena sola) -->
+    <div id="category-nav" class="flex overflow-x-auto gap-2 px-4 mb-6 no-scrollbar">
+        <!-- Los botones de categorías se generan aquí automáticamente -->
+    </div>
+
+    <!-- CATÁLOGO -->
+    <main id="catalog" class="grid grid-cols-2 gap-3 px-4 max-w-md mx-auto pb-32">
+        <!-- Los productos se cargan aquí -->
+    </main>
+
+    <!-- BOTÓN CARRITO SIEMPRE VISIBLE -->
+    <div onclick="toggleCart()" class="fixed bottom-6 right-6 bg-orange-600 p-4 rounded-2xl shadow-xl z-50 flex items-center gap-3 active:scale-90 transition-transform cursor-pointer">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <span id="cart-count" class="font-black">0</span>
+    </div>
+
+    <!-- MODAL CARRITO -->
+    <div id="cart-modal" class="fixed inset-0 bg-black/90 hidden z-[60] flex items-end">
+        <div class="bg-zinc-900 w-full max-w-md mx-auto rounded-t-3xl p-6 border-t-2 border-orange-600">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold">Resumen de Pedido</h2>
+                <button onclick="toggleCart()" class="text-zinc-500 text-2xl">&times;</button>
+            </div>
+            <div id="cart-items" class="space-y-3 max-h-60 overflow-y-auto mb-6"></div>
+            <div class="flex justify-between text-xl font-black border-t border-zinc-800 pt-4 mb-6">
+                <span>TOTAL:</span>
+                <span id="cart-total" class="text-orange-500">$0.00</span>
+            </div>
+            <button onclick="sendWhatsApp()" class="w-full bg-green-600 py-4 rounded-xl font-bold flex items-center justify-center gap-2">
+                <i class="fa-brands fa-whatsapp text-xl"></i> PEDIR POR WHATSAPP
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const WHATSAPP_NUMBER = "521234567890";
+
+        // CONFIGURACIÓN MANUAL DE PRODUCTOS
+        // Si creas una categoría nueva en 'cat', el botón aparecerá solo arriba.
+        const products = [
+            { id: 1, name: "Whey Gold 5lb", price: 75.0, cat: "proteinas", stock: 15, img: "https://via.placeholder.com" },
+            { id: 2, name: "C4 Original 30 serv", price: 35.0, cat: "pre-entrenos", stock: 10, img: "https://via.placeholder.com" },
+            { id: 3, name: "BCAA 2:1:1 Powder", price: 28.0, cat: "bcaa", stock: 20, img: "https://via.placeholder.com" },
+            { id: 4, name: "Amino Build", price: 32.0, cat: "amino acidos", stock: 5, img: "https://via.placeholder.com" },
+            { id: 5, name: "Cinturón Gym Pro", price: 40.0, cat: "equipo", stock: 8, img: "https://via.placeholder.com" },
+            { id: 6, name: "Producto Agotado Test", price: 10.0, cat: "proteinas", stock: 0, img: "" } // No se verá
+        ];
+
+        let cart = [];
+
+        // Generar pestañas de categorías automáticamente
+        function initCategories() {
+            const nav = document.getElementById('category-nav');
+            // Obtener categorías únicas de los productos con stock
+            const categories = ['todos', ...new Set(products.filter(p => p.stock > 0).map(p => p.cat))];
+            
+            nav.innerHTML = categories.map(cat => `
+                <button onclick="filter('${cat}')" class="cat-btn whitespace-nowrap px-5 py-2 rounded-xl border border-zinc-800 bg-zinc-900 text-xs font-bold uppercase transition-all">
+                    ${cat}
+                </button>
+            `).join('');
+            
+            document.querySelector('.cat-btn').classList.add('active-cat');
+        }
+
+        function renderProducts(catFilter = 'todos') {
+            const container = document.getElementById('catalog');
+            container.innerHTML = "";
+            
+            const filtered = products.filter(p => p.stock > 0 && (catFilter === 'todos' || p.cat === catFilter));
+            
+            filtered.forEach(p => {
+                container.innerHTML += `
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 animate-fade-in">
+                        <div class="h-32 bg-zinc-800 rounded-lg mb-2 overflow-hidden italic text-[10px] flex items-center justify-center text-zinc-600 uppercase">Foto Producto</div>
+                        <h3 class="text-[11px] font-bold leading-tight h-8 mb-1">${p.name}</h3>
+                        <p class="text-orange-500 font-black text-sm mb-3">$${p.price.toFixed(2)}</p>
+                        <button onclick="addToCart(${p.id})" class="w-full bg-zinc-800 text-[10px] py-2 rounded-lg font-bold hover:bg-orange-600 transition-colors uppercase">Añadir</button>
+                    </div>
+                `;
+            });
+        }
+
+        function filter(cat) {
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.classList.toggle('active-cat', btn.innerText.toLowerCase() === cat.toLowerCase());
+            });
+            renderProducts(cat);
+        }
+
+        function addToCart(id) {
+            const product = products.find(p => p.id === id);
+            cart.push(product);
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('cart-count').innerText = cart.length;
+            const itemsDiv = document.getElementById('cart-items');
+            itemsDiv.innerHTML = cart.map((p, i) => `
+                <div class="flex justify-between items-center bg-zinc-800/40 p-3 rounded-lg border border-zinc-800">
+                    <span class="text-xs font-bold">${p.name}</span>
+                    <div class="flex items-center gap-4">
+                        <span class="text-orange-500 font-bold">$${p.price.toFixed(2)}</span>
+                        <button onclick="remove(${i})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            
+            const total = cart.reduce((s, p) => s + p.price, 0);
+            document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function remove(index) {
+            cart.splice(index, 1);
+            updateUI();
+        }
+
+        function toggleCart() {
+            document.getElementById('cart-modal').classList.toggle('hidden');
+        }
+
+        function sendWhatsApp() {
+            if (cart.length === 0) return;
+            const total = cart.reduce((s, p) => s + p.price, 0);
+            let msg = `💪 *NUEVO PEDIDO GYM STORE*%0A--------------------------%0A`;
+            cart.forEach(p => msg += `• ${p.name} - $${p.price.toFixed(2)}%0A`);
+            msg += `--------------------------%0A🔥 *TOTAL: $${total.toFixed(2)}*%0A%0A_¿Tienen disponibilidad para envío?_`;
+            window.open(`https://wa.me{WHATSAPP_NUMBER}?text=${msg}`);
+        }
+
+        // Inicialización
+        initCategories();
+        renderProducts();
+    </script>
+</body>
+</html>
